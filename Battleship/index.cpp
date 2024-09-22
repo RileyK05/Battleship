@@ -1,6 +1,12 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cstdlib> 
+#include <ctime>
+
+
+class Player;
+class Board;
 
 struct Position {
     int x;
@@ -30,7 +36,16 @@ public:
     }
 
     void writeBoard() {
+        std::cout << "   ";
+        for (char c = 'A'; c <= 'J'; c++) {
+            std::cout << c << " ";
+        }
+        std::cout << std::endl;
+
         for (int i = 0; i < 10; i++) {
+            std::cout << i + 1 << " ";
+            if (i + 1 < 10) std::cout << " ";
+
             for (int j = 0; j < 10; j++) {
                 if (grid[i][j]) {
                     std::cout << "S ";
@@ -42,14 +57,15 @@ public:
             std::cout << std::endl;
         }
     }
+
 };
 
-void placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vector<bool>>& grid) {
+bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vector<bool>>& grid) {
     if (isHorizontal) {
         for (int i = 0; i < ship.size; i++) {
             if (x + i >= 10 || grid[x + i][y]) {
                 std::cout << "Invalid placement: Out of range or overlap detected\n";
-                return;
+                return false;
             }
         }
     }
@@ -57,7 +73,7 @@ void placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
         for (int i = 0; i < ship.size; i++) {
             if (y + i >= 10 || grid[x][y + i]) {
                 std::cout << "Invalid placement: Out of range or overlap detected\n";
-                return;
+                return false;
             }
         }
     }
@@ -76,7 +92,41 @@ void placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
     }
 
     std::cout << ship.name << " placed successfully.\n";
+    return true;
 }
+
+class Bot {
+public:
+    Player& bot;
+    Board& botBoard;
+
+    Bot(Player& p, Board& b) : bot(p), botBoard(b) {
+        srand(static_cast<unsigned>(time(0)));
+    }
+
+    void placeShips() {
+        for (Ship& ship : bot.ships) {
+            bool shipPlaced = false;
+            while (!shipPlaced) {
+                int x = rand() % 10;
+                int y = rand() % 10;
+                bool isHorizontal = rand() % 2;
+
+                if (placeShip(ship, x, y, isHorizontal, botBoard.grid)) {
+                    shipPlaced = true;
+                    botBoard.writeBoard();
+                }
+            }
+        }
+    }
+};
+
+class BattleLogic {
+
+
+
+};
+
 
 void initializeFleet(Player& player) {
     player.ships.push_back(Ship{ "Carrier", 5 });
@@ -89,18 +139,39 @@ void initializeFleet(Player& player) {
 int main() {
     Player player;
     initializeFleet(player);
-
     Board board(player);
+    board.writeBoard();
+
+    Player botPlayer;
+    initializeFleet(botPlayer);
+    Board botBoard(botPlayer);
+    Bot bot(botPlayer, botBoard);
+
+    std::cout << "\nBot is placing ships...\n";
+    bot.placeShips();
 
     for (Ship& ship : player.ships) {
-        int x = rand() % 10;
-        int y = rand() % 10;
-        bool isHorizontal = rand() % 2;
+        bool placed = false;
 
-        placeShip(ship, x, y, isHorizontal, board.grid); 
+        while (!placed) {
+            char userX;
+            int userY;
+
+            std::cout << "Place your " << ship.name << " (size " << ship.size << "): Enter column (A-J) and row (1-10): ";
+            std::cin >> userX >> userY;
+            int columnIndex = userX - 'A';
+            int rowIndex = userY - 1;
+
+            bool isHorizontal;
+            std::cout << "Is the ship horizontal (1 for yes, 0 for no)? ";
+            std::cin >> isHorizontal;
+
+            if (placeShip(ship, rowIndex, columnIndex, isHorizontal, board.grid)) {
+                placed = true;
+                board.writeBoard();
+            }
+        }
     }
-
-    board.writeBoard(); 
 
     return 0;
 }
