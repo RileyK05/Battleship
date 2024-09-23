@@ -122,10 +122,36 @@ public:
 };
 
 class BattleLogic {
+public:
+    Player& player;
+    Player& bot;
+    Board& playerBoard;
+    Board& botBoard;
 
+    BattleLogic(Player& p, Player& b, Board& pb, Board& bb)
+        : player(p), bot(b), playerBoard(pb), botBoard(bb) {}
 
+    void playerTurn() {
 
+    }
+
+    void botTurn() {
+
+    }
+
+    bool isGameOver() {
+
+    }
+
+    void startGame() {
+        while (!isGameOver()) {
+            playerTurn();
+            if (isGameOver()) break;
+            botTurn();
+        }
+    }
 };
+
 
 
 void initializeFleet(Player& player) {
