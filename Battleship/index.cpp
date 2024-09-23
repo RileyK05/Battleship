@@ -28,11 +28,11 @@ public:
 
 class Board {
 public:
-    std::vector<std::vector<bool>> grid;
+    std::vector<std::vector<char>> grid;
     Player& player;
 
     Board(Player& p) : player(p) {
-        grid.resize(10, std::vector<bool>(10, false));
+        grid.resize(10, std::vector<char>(10, '~')); 
     }
 
     void writeBoard() {
@@ -47,8 +47,14 @@ public:
             if (i + 1 < 10) std::cout << " ";
 
             for (int j = 0; j < 10; j++) {
-                if (grid[i][j]) {
+                if (grid[i][j] == 'S') {
                     std::cout << "S ";
+                }
+                else if (grid[i][j] == 'H') {
+                    std::cout << "H ";
+                }
+                else if (grid[i][j] == 'M') {
+                    std::cout << "M ";
                 }
                 else {
                     std::cout << "~ ";
@@ -58,12 +64,46 @@ public:
         }
     }
 
+    void enemyBoard() {
+        std::cout << "   ";
+        for (char c = 'A'; c <= 'J'; c++) {
+            std::cout << c << " ";
+        }
+        std::cout << std::endl;
+
+        for (int i = 0; i < 10; i++) {
+            std::cout << i + 1 << " ";
+            if (i + 1 < 10) std::cout << " ";
+
+            for (int j = 0; j < 10; j++) {
+                if (grid[i][j] == 'H') {
+                    std::cout << "H ";
+                }
+                else if (grid[i][j] == 'M') {
+                    std::cout << "M ";
+                }
+                else {
+                    std::cout << "~ ";
+                }
+            }
+            std::cout << std::endl;
+        }
+    }
+
+    void markHitOrMiss(int row, int col, bool hit) {
+        if (hit) {
+            grid[row][col] = 'H'; 
+        }
+        else {
+            grid[row][col] = 'M'; 
+        }
+    }
 };
 
-bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vector<bool>>& grid) {
+bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vector<char>>& grid) {
     if (isHorizontal) {
         for (int i = 0; i < ship.size; i++) {
-            if (x + i >= 10 || grid[x + i][y]) {
+            if (x + i >= 10 || grid[x + i][y] != '~') {
                 std::cout << "Invalid placement: Out of range or overlap detected\n";
                 return false;
             }
@@ -71,7 +111,7 @@ bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
     }
     else {
         for (int i = 0; i < ship.size; i++) {
-            if (y + i >= 10 || grid[x][y + i]) {
+            if (y + i >= 10 || grid[x][y + i] != '~') {
                 std::cout << "Invalid placement: Out of range or overlap detected\n";
                 return false;
             }
@@ -80,13 +120,13 @@ bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
 
     if (isHorizontal) {
         for (int i = 0; i < ship.size; i++) {
-            grid[x + i][y] = true;
+            grid[x + i][y] = 'S';
             ship.positions.push_back(Position{ x + i, y });
         }
     }
     else {
         for (int i = 0; i < ship.size; i++) {
-            grid[x][y + i] = true;
+            grid[x][y + i] = 'S';
             ship.positions.push_back(Position{ x, y + i });
         }
     }
@@ -94,6 +134,7 @@ bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
     std::cout << ship.name << " placed successfully.\n";
     return true;
 }
+
 
 class Bot {
 public:
@@ -125,6 +166,8 @@ class BattleLogic {
 public:
     Player& player;
     Player& bot;
+
+
     Board& playerBoard;
     Board& botBoard;
 
@@ -132,6 +175,32 @@ public:
         : player(p), bot(b), playerBoard(pb), botBoard(bb) {}
 
     void playerTurn() {
+        char userX;
+        int userY;
+
+        std::cout << "Enter cordinates to strike (column (A-J) and row (1-10)): ";
+        std::cin >> userX >> userY;
+
+        int columnIndex = userX - 'A';
+        int rowIndex = userY - 1;
+
+        bool hit = false;
+
+        for (Ship& ship : bot.ships) {
+            for (Position& pos : ship.positions) {
+                if (pos.x == rowIndex && pos.y == columnIndex) {
+                    std::cout << "Hit!\n";
+                    hit = true;
+                    break; 
+                }
+            }
+            if (hit) break;
+        }
+
+        if (!hit) {
+            std::cout << "Miss!\n";
+        }
+
 
     }
 
