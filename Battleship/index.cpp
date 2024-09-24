@@ -24,6 +24,7 @@ public:
 class Player {
 public:
     std::vector<Ship> ships;
+    int shipCount = 5;
 };
 
 class Board {
@@ -136,6 +137,8 @@ bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
 }
 
 
+
+
 class Bot {
 public:
     Player& bot;
@@ -160,13 +163,71 @@ public:
             }
         }
     }
+
+    std::vector<Position> consecutiveHits;
+
+    void checkTargets(int& rowIndex, int& columnIndex) {
+        for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < 10; i++) {
+
+            }
+        }
+    }
+
+    void checkSurroundingHits(int i, int j) {
+        if (i < 0 || i >= 10 || j < 0 || j >= 10 || botBoard.grid[i][j] != 'H') {
+            return; 
+        }
+
+        botBoard.grid[i][j] = 'P';
+        consecutiveHits.push_back(Position{ i, j });
+
+        checkSurroundingHits(i - 1, j);
+        checkSurroundingHits(i + 1, j);
+        checkSurroundingHits(i, j - 1);
+        checkSurroundingHits(i, j + 1);
+    }
+
+    int attackX = 1;
+    int attackY = 1;
+
+    bool isHorizontal = true;
+    bool isVertical = true;
+
+    void botBattleLogic() {
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                if (botBoard.grid[i][j] == 'H') {
+                    if (botBoard.grid[i][j] == 'H') {
+                        checkSurroundingHits(i, j);
+                        for (size_t k = 1; k < consecutiveHits.size(); k++) {
+                            if (consecutiveHits[k].x != consecutiveHits[0].x) {
+                                isHorizontal = false;
+                            }
+                            if (consecutiveHits[k].y != consecutiveHits[0].y) {
+                                isVertical = false;
+                            }
+                            if (isHorizontal) {
+                                consecutiveHits[j]
+                            }
+                            else if (isVertical) {
+                                
+                            }
+                        }
+
+                    }
+
+                if (botBoard.grid[i][j] == 'M') {
+                }
+            }
+        }
+    }
 };
 
 class BattleLogic {
 public:
     Player& player;
     Player& bot;
-
 
     Board& playerBoard;
     Board& botBoard;
@@ -178,7 +239,7 @@ public:
         char userX;
         int userY;
 
-        std::cout << "Enter cordinates to strike (column (A-J) and row (1-10)): ";
+        std::cout << "Enter coordinates to strike (column (A-J) and row (1-10)): ";
         std::cin >> userX >> userY;
 
         int columnIndex = userX - 'A';
@@ -191,7 +252,20 @@ public:
                 if (pos.x == rowIndex && pos.y == columnIndex) {
                     std::cout << "Hit!\n";
                     hit = true;
-                    break; 
+
+                    ship.positions.erase(std::remove_if(ship.positions.begin(), ship.positions.end(),
+                        [&](const Position& pos) {
+                            return pos.x == rowIndex && pos.y == columnIndex;
+                        }), ship.positions.end());
+
+                    if (ship.positions.empty()) {
+                        std::cout << ship.name << " has sunk!\n";
+                        ship.sunk = true;
+                        bot.shipCount--;
+                    }
+
+                    botBoard.markHitOrMiss(rowIndex, columnIndex, true);
+                    break;
                 }
             }
             if (hit) break;
@@ -199,17 +273,51 @@ public:
 
         if (!hit) {
             std::cout << "Miss!\n";
+            botBoard.markHitOrMiss(rowIndex, columnIndex, false);
         }
-
-
     }
 
-    void botTurn() {
 
+    void botTurn() {
+        char userX;
+        int userY;
+        bool hit;
+
+
+        bool hit = false;
+
+        for (Ship& ship : player.ships) {
+            for (Position& pos : ship.positions) {
+                if (pos.x == rowIndex && pos.y == columnIndex) {
+                    std::cout << "Hit!\n";
+                    hit = true;
+
+                    ship.positions.erase(std::remove_if(ship.positions.begin(), ship.positions.end(),
+                        [&](const Position& pos) {
+                            return pos.x == rowIndex && pos.y == columnIndex;
+                        }), ship.positions.end());
+
+                    if (ship.positions.empty()) {
+                        std::cout << ship.name << " has sunk!\n";
+                        ship.sunk = true;
+                        player.shipCount--;
+                    }
+
+                    botBoard.markHitOrMiss(rowIndex, columnIndex, true);
+                    break;
+                }
+            }
+            if (hit) break;
+        }
+
+        if (!hit) {
+            std::cout << "Miss!\n";
+            botBoard.markHitOrMiss(rowIndex, columnIndex, false);
+        }
     }
 
     bool isGameOver() {
-
+        return player.shipCount == 0 || bot.shipCount == 0;
     }
 
     void startGame() {
