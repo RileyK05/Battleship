@@ -3,7 +3,15 @@
 #include <vector>
 #include <cstdlib> 
 #include <ctime>
+#include <limits>
+#include <algorithm> 
+#include <random>  
 
+#ifdef _WIN32
+#define CLEAR_COMMAND "cls"
+#else
+#define CLEAR_COMMAND "clear"
+#endif
 
 class Player;
 class Board;
@@ -33,7 +41,7 @@ public:
     Player& player;
 
     Board(Player& p) : player(p) {
-        grid.resize(10, std::vector<char>(10, '~')); 
+        grid.resize(10, std::vector<char>(10, '~'));
     }
 
     void writeBoard() {
@@ -65,8 +73,12 @@ public:
         }
     }
 
-    void enemyBoard() {
+    void writeDualBoards(Board& enemyBoard) {
         std::cout << "   ";
+        for (char c = 'A'; c <= 'J'; c++) {
+            std::cout << c << " ";
+        }
+        std::cout << "         ";
         for (char c = 'A'; c <= 'J'; c++) {
             std::cout << c << " ";
         }
@@ -75,9 +87,25 @@ public:
         for (int i = 0; i < 10; i++) {
             std::cout << i + 1 << " ";
             if (i + 1 < 10) std::cout << " ";
-
             for (int j = 0; j < 10; j++) {
-                if (grid[i][j] == 'H') {
+                if (enemyBoard.grid[i][j] == 'H') {
+                    std::cout << "H ";
+                }
+                else if (enemyBoard.grid[i][j] == 'M') {
+                    std::cout << "M ";
+                }
+                else {
+                    std::cout << "~ ";
+                }
+            }
+
+            std::cout << "       " << i + 1 << " ";
+            if (i + 1 < 10) std::cout << " ";
+            for (int j = 0; j < 10; j++) {
+                if (grid[i][j] == 'S') {
+                    std::cout << "S ";
+                }
+                else if (grid[i][j] == 'H') {
                     std::cout << "H ";
                 }
                 else if (grid[i][j] == 'M') {
@@ -93,13 +121,32 @@ public:
 
     void markHitOrMiss(int row, int col, bool hit) {
         if (hit) {
-            grid[row][col] = 'H'; 
+            grid[row][col] = 'H';
         }
         else {
-            grid[row][col] = 'M'; 
+            grid[row][col] = 'M';
         }
     }
 };
+
+void getValidCoordinates(char& column, int& row) {
+    bool validInput = false;
+    while (!validInput) {
+        std::cout << "Enter coordinates (column (A-J) and row (1-10)): ";
+        std::cin >> column >> row;
+
+        column = toupper(column);
+
+        if (column >= 'A' && column <= 'J' && row >= 1 && row <= 10) {
+            validInput = true;
+        }
+        else {
+            std::cout << "Invalid input. Please enter a column from A-J and a row from 1-10.\n";
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+        }
+    }
+}
 
 bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vector<char>>& grid) {
     if (isHorizontal) {
@@ -136,13 +183,13 @@ bool placeShip(Ship& ship, int x, int y, bool isHorizontal, std::vector<std::vec
     return true;
 }
 
-
-
-
 class Bot {
 public:
     Player& bot;
     Board& botBoard;
+
+    std::vector<Position> hitPositions;
+    std::vector<Position> targetQueue;
 
     Bot(Player& p, Board& b) : bot(p), botBoard(b) {
         srand(static_cast<unsigned>(time(0)));
@@ -158,68 +205,47 @@ public:
 
                 if (placeShip(ship, x, y, isHorizontal, botBoard.grid)) {
                     shipPlaced = true;
-                    botBoard.writeBoard();
                 }
             }
         }
     }
 
-    std::vector<Position> consecutiveHits;
-
-    void checkTargets(int& rowIndex, int& columnIndex) {
-        for (int i = 0; i < 10; i++) {
-            for (int i = 0; i < 10; i++) {
-
-            }
+    Position getNextAttack() {
+        if (!targetQueue.empty()) {
+            Position nextTarget = targetQueue.back();
+            targetQueue.pop_back();
+            return nextTarget;
+        }
+        else {
+            Position randomTarget;
+            randomTarget.x = rand() % 10;
+            randomTarget.y = rand() % 10;
+            return randomTarget;
         }
     }
 
-    void checkSurroundingHits(int i, int j) {
-        if (i < 0 || i >= 10 || j < 0 || j >= 10 || botBoard.grid[i][j] != 'H') {
-            return; 
+    void addAdjacentPositions(Position pos, std::vector<std::vector<char>>& grid) {
+        std::vector<Position> potentialTargets;
+
+        if (pos.x > 0 && grid[pos.x - 1][pos.y] == '~') {
+            potentialTargets.push_back({ pos.x - 1, pos.y });
+        }
+        if (pos.x < 9 && grid[pos.x + 1][pos.y] == '~') {
+            potentialTargets.push_back({ pos.x + 1, pos.y });
+        }
+        if (pos.y > 0 && grid[pos.x][pos.y - 1] == '~') {
+            potentialTargets.push_back({ pos.x, pos.y - 1 });
+        }
+        if (pos.y < 9 && grid[pos.x][pos.y + 1] == '~') {
+            potentialTargets.push_back({ pos.x, pos.y + 1 });
         }
 
-        botBoard.grid[i][j] = 'P';
-        consecutiveHits.push_back(Position{ i, j });
+        std::random_device rd;
+        std::default_random_engine rng(rd());
+        std::shuffle(potentialTargets.begin(), potentialTargets.end(), rng);
 
-        checkSurroundingHits(i - 1, j);
-        checkSurroundingHits(i + 1, j);
-        checkSurroundingHits(i, j - 1);
-        checkSurroundingHits(i, j + 1);
-    }
-
-    int attackX = 1;
-    int attackY = 1;
-
-    bool isHorizontal = true;
-    bool isVertical = true;
-
-    void botBattleLogic() {
-        for (int i = 0; i < 10; i++) {
-            for (int j = 0; j < 10; j++) {
-                if (botBoard.grid[i][j] == 'H') {
-                    if (botBoard.grid[i][j] == 'H') {
-                        checkSurroundingHits(i, j);
-                        for (size_t k = 1; k < consecutiveHits.size(); k++) {
-                            if (consecutiveHits[k].x != consecutiveHits[0].x) {
-                                isHorizontal = false;
-                            }
-                            if (consecutiveHits[k].y != consecutiveHits[0].y) {
-                                isVertical = false;
-                            }
-                            if (isHorizontal) {
-                                consecutiveHits[j]
-                            }
-                            else if (isVertical) {
-                                
-                            }
-                        }
-
-                    }
-
-                if (botBoard.grid[i][j] == 'M') {
-                }
-            }
+        for (Position adjPos : potentialTargets) {
+            targetQueue.push_back(adjPos);
         }
     }
 };
@@ -231,26 +257,32 @@ public:
 
     Board& playerBoard;
     Board& botBoard;
+    Bot& botLogic;
 
-    BattleLogic(Player& p, Player& b, Board& pb, Board& bb)
-        : player(p), bot(b), playerBoard(pb), botBoard(bb) {}
+    BattleLogic(Player& p, Player& b, Board& pb, Board& bb, Bot& botL)
+        : player(p), bot(b), playerBoard(pb), botBoard(bb), botLogic(botL) {}
 
     void playerTurn() {
         char userX;
         int userY;
 
-        std::cout << "Enter coordinates to strike (column (A-J) and row (1-10)): ";
-        std::cin >> userX >> userY;
+        getValidCoordinates(userX, userY);
 
         int columnIndex = userX - 'A';
         int rowIndex = userY - 1;
+
+        if (botBoard.grid[rowIndex][columnIndex] == 'H' || botBoard.grid[rowIndex][columnIndex] == 'M') {
+            std::cout << "You've already attacked this position. Try again.\n";
+            playerTurn();
+            return;
+        }
 
         bool hit = false;
 
         for (Ship& ship : bot.ships) {
             for (Position& pos : ship.positions) {
                 if (pos.x == rowIndex && pos.y == columnIndex) {
-                    std::cout << "Hit!\n";
+                    std::cout << "You hit the enemy's " << ship.name << "!\n";
                     hit = true;
 
                     ship.positions.erase(std::remove_if(ship.positions.begin(), ship.positions.end(),
@@ -259,7 +291,7 @@ public:
                         }), ship.positions.end());
 
                     if (ship.positions.empty()) {
-                        std::cout << ship.name << " has sunk!\n";
+                        std::cout << "You sunk the enemy's " << ship.name << "!\n";
                         ship.sunk = true;
                         bot.shipCount--;
                     }
@@ -272,38 +304,41 @@ public:
         }
 
         if (!hit) {
-            std::cout << "Miss!\n";
+            std::cout << "You missed.\n";
             botBoard.markHitOrMiss(rowIndex, columnIndex, false);
         }
     }
 
-
     void botTurn() {
-        char userX;
-        int userY;
-        bool hit;
+        Position attackPos = botLogic.getNextAttack();
 
+        while (playerBoard.grid[attackPos.x][attackPos.y] == 'H' || playerBoard.grid[attackPos.x][attackPos.y] == 'M') {
+            attackPos = botLogic.getNextAttack();
+        }
 
         bool hit = false;
 
         for (Ship& ship : player.ships) {
             for (Position& pos : ship.positions) {
-                if (pos.x == rowIndex && pos.y == columnIndex) {
-                    std::cout << "Hit!\n";
+                if (pos.x == attackPos.x && pos.y == attackPos.y) {
+                    std::cout << "The enemy hit your " << ship.name << "!\n";
                     hit = true;
 
                     ship.positions.erase(std::remove_if(ship.positions.begin(), ship.positions.end(),
                         [&](const Position& pos) {
-                            return pos.x == rowIndex && pos.y == columnIndex;
+                            return pos.x == attackPos.x && pos.y == attackPos.y;
                         }), ship.positions.end());
 
                     if (ship.positions.empty()) {
-                        std::cout << ship.name << " has sunk!\n";
+                        std::cout << "The enemy sunk your " << ship.name << "!\n";
                         ship.sunk = true;
                         player.shipCount--;
                     }
 
-                    botBoard.markHitOrMiss(rowIndex, columnIndex, true);
+                    playerBoard.markHitOrMiss(attackPos.x, attackPos.y, true);
+
+                    botLogic.addAdjacentPositions(attackPos, playerBoard.grid);
+
                     break;
                 }
             }
@@ -311,8 +346,8 @@ public:
         }
 
         if (!hit) {
-            std::cout << "Miss!\n";
-            botBoard.markHitOrMiss(rowIndex, columnIndex, false);
+            std::cout << "The enemy missed.\n";
+            playerBoard.markHitOrMiss(attackPos.x, attackPos.y, false);
         }
     }
 
@@ -322,14 +357,24 @@ public:
 
     void startGame() {
         while (!isGameOver()) {
+            system(CLEAR_COMMAND);
+            playerBoard.writeDualBoards(botBoard);
             playerTurn();
             if (isGameOver()) break;
             botTurn();
         }
+
+        system(CLEAR_COMMAND);
+        playerBoard.writeDualBoards(botBoard);
+
+        if (player.shipCount == 0) {
+            std::cout << "\nYou lost the game. Better luck next time!\n";
+        }
+        else {
+            std::cout << "\nCongratulations! You won the game!\n";
+        }
     }
 };
-
-
 
 void initializeFleet(Player& player) {
     player.ships.push_back(Ship{ "Carrier", 5 });
@@ -343,7 +388,6 @@ int main() {
     Player player;
     initializeFleet(player);
     Board board(player);
-    board.writeBoard();
 
     Player botPlayer;
     initializeFleet(botPlayer);
@@ -360,8 +404,10 @@ int main() {
             char userX;
             int userY;
 
-            std::cout << "Place your " << ship.name << " (size " << ship.size << "): Enter column (A-J) and row (1-10): ";
-            std::cin >> userX >> userY;
+            std::cout << "Place your " << ship.name << " (size " << ship.size << "): ";
+
+            getValidCoordinates(userX, userY);
+
             int columnIndex = userX - 'A';
             int rowIndex = userY - 1;
 
@@ -371,10 +417,14 @@ int main() {
 
             if (placeShip(ship, rowIndex, columnIndex, isHorizontal, board.grid)) {
                 placed = true;
+                system(CLEAR_COMMAND);
                 board.writeBoard();
             }
         }
     }
+
+    BattleLogic battle(player, botPlayer, board, botBoard, bot);
+    battle.startGame();
 
     return 0;
 }
